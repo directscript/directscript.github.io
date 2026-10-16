@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direct.script — Editor</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#121a2d;--panel2:#0e1526;--line:#26334d;--text:#e8eefc;--muted:#8fa1c2;--blue:#6d8dff;--green:#4ade80;--red:#fb7185}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#0d1425}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6d8dff,#a78bfa);display:grid;place-items:center;font-weight:900;color:white;font-size:19px}.brand h1{font-size:20px;margin:0}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}
+button,select,input{font:inherit;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#1a2540;color:var(--text)}button{cursor:pointer}button:hover{filter:brightness(1.15)}.run{background:var(--blue);border-color:var(--blue);color:#081126;font-weight:800}
+.toolbar{display:flex;flex-wrap:wrap;gap:7px;padding:12px;border-bottom:1px solid var(--line);background:var(--panel)}.toolbar button{font-size:13px;padding:8px 10px}
+#chart-studio{display:none;max-width:1200px;margin:0 auto;padding:16px}#chart-studio.active{display:block}#chart-studio .studio-grid{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(0,1.4fr);gap:16px}#chart-studio .control{display:grid;gap:6px;margin:12px 0}#chart-studio label{font-size:13px;color:var(--muted)}#chart-studio input[type=text],#chart-studio select{width:100%;background:#080e1b}#chart-studio input[type=range]{width:100%;accent-color:var(--blue)}#chart-studio input[type=color]{width:100%;height:42px;padding:4px;background:#080e1b}#chart-preview{min-height:360px;display:grid;place-items:center;padding:12px;background:#080e1b;overflow:auto}#chart-preview svg{max-width:100%;height:auto}#chart-studio .studio-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-top:1px solid var(--line)}#chart-studio .muted{font-size:12px;color:var(--muted)}@media(max-width:800px){#chart-studio .studio-grid{grid-template-columns:1fr}#chart-preview{min-height:280px}}
+main{max-width:1400px;margin:auto;padding:16px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.7fr);gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}.panelhead{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);font-weight:700;gap:8px}.panelhead small{font-weight:500;color:var(--muted)}
+.editor-wrap{display:grid;grid-template-columns:46px minmax(0,1fr);background:var(--panel2);position:relative;min-height:400px}
+#gutter{margin:0;padding:16px 9px 18px 0;text-align:right;color:#536381;border-right:1px solid #26334d;font:14px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;user-select:none;overflow:hidden}
+.code-area{position:relative;min-width:0}
+#code,#highlight{display:block;width:100%;height:400px;min-height:400px;margin:0;padding:16px;border:0;outline:none;background:transparent;font:14px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4;white-space:pre;overflow:auto;overflow-wrap:normal}
+#highlight{position:absolute;inset:0;z-index:1;pointer-events:none;color:#dbe7ff;overflow:hidden;display:block;white-space:pre}
+#code{position:relative;resize:vertical;background:transparent;color:transparent;-webkit-text-fill-color:transparent;caret-color:#fff;z-index:2}
+#code::selection{background:#526ca566;-webkit-text-fill-color:transparent}
+.kw{color:#c4a7ff;font-weight:700}.fn{color:#79d6ff}.str{color:#a5e6a1}.num{color:#ffc777}.bool{color:#ff9eb5}.op{color:#f0a7ff}.comment{color:#7183a4;font-style:italic}
+.suggest{display:none;position:absolute;z-index:8;left:12px;top:45px;max-width:calc(100% - 24px);background:#1b2943;border:1px solid #425579;border-radius:10px;padding:5px;box-shadow:0 12px 30px #0008}
+.suggest button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:7px 10px;font:13px ui-monospace,monospace}.suggest button:hover{background:#2d4165}
+.tools{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-top:1px solid var(--line)}
+#output{min-height:190px;max-height:360px;overflow:auto;padding:15px;background:#080e1b;font:14px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.placeholder{color:#61718e}.ok{color:var(--green)}.err{color:var(--red)}
+.help{padding:14px 16px;color:var(--muted);font-size:13px;line-height:1.65}.help code{color:#c6d4ff;background:#202b45;padding:2px 5px;border-radius:4px}
+.projectbar{display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center}.projectbar input{min-width:100px;flex:1}.filelist{display:flex;gap:6px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line)}.filetab{font-size:12px;padding:6px 9px}.filetab.active{background:#34466b;border-color:#6d8dff}.status{color:var(--muted);font-size:12px;padding:8px 12px}
+footer{max-width:1400px;margin:0 auto;padding:0 16px 22px;color:var(--muted);font-size:12px}
+
+
+#examples-modal{display:none;position:fixed;inset:0;z-index:1100;background:#020617d9;align-items:center;justify-content:center;padding:14px}
+#examples-modal.open{display:flex}.examples-card{width:min(100%,620px);max-height:90vh;overflow:auto;background:#121a2d;border:1px solid #425579;border-radius:16px;padding:16px;box-shadow:0 20px 60px #0009}
+.examples-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.examples-head h2{font-size:19px;margin:0}.examples-head p{color:var(--muted);font-size:13px;margin:5px 0 14px}#examples-search{width:100%;margin-bottom:12px;background:#080e1b}#examples-list{display:grid;gap:9px}.example-item{border:1px solid var(--line);border-radius:11px;padding:12px;background:#0e1526}.example-item h3{margin:0 0 4px;font-size:15px}.example-item p{margin:0 0 9px;color:var(--muted);font-size:13px}.example-item pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#080e1b;border-radius:8px;padding:10px;font:12px/1.6 ui-monospace,monospace;color:#dbe7ff;margin:0 0 9px}.example-item button{background:var(--blue);color:#081126;font-weight:700}.example-item .example-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+#input-modal{display:none;position:fixed;inset:0;z-index:1000;background:#020617cc;align-items:center;justify-content:center;padding:18px}
+#input-modal.open{display:flex}
+.input-card{width:min(100%,420px);background:#121a2d;border:1px solid #425579;border-radius:16px;padding:20px;box-shadow:0 20px 60px #0009}
+.input-card h2{font-size:18px;margin:0 0 14px}.input-card input{width:100%;margin:4px 0 16px;background:#080e1b}
+.input-actions{display:flex;justify-content:flex-end;gap:8px}.input-actions .accept{background:var(--blue);color:#081126;font-weight:800}
+@media(max-width:800px){main{grid-template-columns:1fr;padding:10px}header{padding:12px}#code,#highlight{height:360px;min-height:360px;font-size:13px;padding:13px}.editor-wrap{grid-template-columns:38px minmax(0,1fr);min-height:360px}#gutter{font-size:13px;padding:13px 7px 13px 0}.toolbar{padding:9px}.toolbar button{flex:1}}
+</style>
+</head>
+<body>
+<div id="input-modal" role="dialog" aria-modal="true" aria-labelledby="input-title">
+ <div class="input-card">
+  <h2 id="input-title">Entrada de Direct.script</h2>
+  <form id="input-form">
+   <label id="input-prompt" for="input-answer">Escribe tu respuesta</label>
+   <input id="input-answer" type="text" autocomplete="off" autocapitalize="off">
+   <div class="input-actions"><button type="button" id="input-cancel">Cancelar</button><button type="submit" class="accept">Aceptar</button></div>
+  </form>
+ </div>
+</div>
+<div id="examples-modal" role="dialog" aria-modal="true" aria-labelledby="examples-title">
+ <div class="examples-card">
+  <div class="examples-head"><div><h2 id="examples-title">📚 Documentación</h2><p>Consulta ejemplos de código y abre ejemplos de gráficas en su editor.</p></div><button type="button" id="examples-close" aria-label="Cerrar">✕</button></div>
+  <input id="examples-search" type="search" placeholder="Buscar ejemplos…" aria-label="Buscar ejemplos">
+  <div id="examples-list"></div>
+ </div>
+</div>
+<header><div class="brand"><div class="logo">D.</div><div><h1>Direct.script</h1><p>Editor experimental · versión 0.2</p></div></div><span style="color:var(--muted);font-size:12px">Editor local</span></header>
+<div class="toolbar">
+<button class="run" id="run">▶ Ejecutar</button>
+<button id="example">📚 Documentación</button>
+<button id="clear">🧹 Limpiar código</button>
+<button id="download">💾 Guardar .ds</button>
+<button id="newfile">＋ Nuevo archivo</button>
+<button id="openfile">📂 Abrir .ds</button>
+<button id="saveproject">📦 Guardar proyecto</button>
+<button id="open-chart-studio">📊 Editor de gráficas</button>
+<button id="loadproject">📥 Abrir proyecto</button>
+<input id="fileinput" type="file" accept=".ds,.txt" hidden>
+<input id="projectinput" type="file" accept=".json,application/json" hidden>
+</div>
+
+<section id="chart-studio" aria-label="Editor de gráficas">
+ <div class="panel" style="margin-bottom:14px">
+  <div class="panelhead"><span>📊 Editor de gráficas</span><small>Personaliza la apariencia</small></div>
+  <div class="help">Este apartado es independiente del editor de código. Puedes crear una vista previa, ajustar sus propiedades y volver al editor normal cuando quieras.</div>
+ </div>
+ <div class="studio-grid">
+  <section class="panel">
+   <div class="panelhead"><span>⚙️ Propiedades</span></div>
+   <div style="padding:14px">
+    <div class="control"><label for="chart-type">Tipo de gráfica</label><select id="chart-type"><option value="bar">Barras</option><option value="line">Líneas</option><option value="pie">Pastel</option><option value="doughnut">Dona</option><option value="area">Área</option><option value="scatter">Puntos</option></select></div>
+    <div class="control"><label for="chart-title">Título</label><input id="chart-title" type="text" value="Mi gráfica" /></div>
+    <div class="control"><label for="chart-labels">Etiquetas (separadas por comas)</label><input id="chart-labels" type="text" value="Enero,Febrero,Marzo,Abril" /></div>
+    <div class="control"><label for="chart-values">Valores (separados por comas)</label><input id="chart-values" type="text" value="12,19,8,24" /></div>
+    <div class="control"><label for="chart-color">Color principal</label><input id="chart-color" type="color" value="#6d8dff" /></div>
+    <div class="control"><label for="chart-bg">Color de fondo</label><input id="chart-bg" type="color" value="#080e1b" /></div>
+    <div class="control"><label for="chart-width">Ancho: <strong id="chart-width-label">640 px</strong></label><input id="chart-width" type="range" min="280" max="900" value="640" /></div>
+    <div class="control"><label for="chart-height">Alto: <strong id="chart-height-label">340 px</strong></label><input id="chart-height" type="range" min="180" max="520" value="340" /></div>
+    <div class="control"><label for="chart-thickness">Grosor de línea/borde: <strong id="chart-thickness-label">3 px</strong></label><input id="chart-thickness" type="range" min="1" max="8" value="3" /></div>
+   </div>
+   <div class="studio-actions"><button class="run" id="chart-apply">Aplicar cambios</button><button id="chart-reset">Restablecer</button></div>
+  </section>
+  <section class="panel">
+   <div class="panelhead"><span>👁️ Vista previa</span><small id="chart-status">Vista previa lista</small></div>
+   <div id="chart-preview"></div>
+   <div class="help">La vista previa se actualiza al aplicar cambios. Si los valores no coinciden con las etiquetas, se usarán solo los valores disponibles.</div>
+  </section>
+ </div>
+ <div style="display:flex;justify-content:flex-start;margin-top:14px"><button class="run" id="back-to-studio">← Volver al studio</button></div>
+</section>
+
+<main id="normal-main">
+<section class="panel">
+ <div class="panelhead"><span>✎ Editor</span><small id="filename">programa.ds</small></div>
+ <div class="projectbar"><input id="projectname" value="Mi proyecto" aria-label="Nombre del proyecto" placeholder="Nombre del proyecto"><span class="status" id="status">Cambios locales</span></div>
+ <div class="filelist" id="filelist"></div>
+ <div class="editor-wrap"><pre id="gutter" aria-hidden="true">1</pre><div class="code-area"><pre id="highlight" aria-hidden="true"></pre><textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Editor de código"></textarea><div id="suggest" class="suggest"></div></div></div>
+ <div class="tools"><button id="undo">↶ Deshacer</button><button id="redo">↷ Rehacer</button><button id="format">Indentación automática</button></div>
+</section>
+<aside>
+ <section class="panel"><div class="panelhead"><span>▸ Consola</span><button id="clearout">Limpiar</button></div><div id="output"><span class="placeholder">Pulsa «Ejecutar» para ver los resultados…</span></div></section>
+ <section class="panel" style="margin-top:16px"><div class="panelhead"><span>🐛 Errores y comprobaciones</span><button id="check">Revisar</button></div><div id="diagnostics" class="help">La revisión de sintaxis aparecerá aquí.</div></section>
+ <section class="panel" style="margin-top:16px"><div class="panelhead">Guía rápida</div><div class="help">
+ <div><code>variable nombre = "Alex"</code> — crear variable</div><div><code>si condicion { }</code>, <code>sinosi</code>, <code>sino</code> — condiciones</div>
+ <div><code>funcion saludar(nombre) { }</code> — función</div><div><code>retornar valor</code> — devolver valor</div>
+ <div><code>mientras condicion { }</code> — bucle</div><div><code>para variable i = 1 hasta 5 { }</code> — bucle contado</div>
+ <div><code>romper</code> — salir del bucle; <code>continuar</code> — saltar repetición</div><div><code>hacer { } mientras condicion</code> — repetir al menos una vez</div>
+ <div><code>esperar(5)</code> — esperar 5 segundos antes de continuar</div><div><code>mostrar(valor)</code> — escribir en consola</div>
+ <p>Con comillas, <code>mostrar("5+5")</code> imprime el texto. Sin comillas, <code>mostrar(5+5)</code> imprime <code>10</code>.</p>
+ </div></section>
+</aside>
+</main>
+<footer id="normal-footer">Prototipo local: los programas se ejecutan en tu navegador. La ejecución tiene límites de seguridad; no ejecutes código que no entiendas.</footer>
+<script>
+const editor=document.getElementById('code'), output=document.getElementById('output'), highlight=document.getElementById('highlight'), gutter=document.getElementById('gutter');
+const words=['variable','si','sinosi','sino','repetir','funcion','retornar','mientras','para','hasta','romper','continuar','hacer','esperar','mostrar','aceptar','verdadero','falso','nulo','y','o'];
+const sample=`variable nombre = "Alex"
+
+mostrar("Hola")
+esperar(1)
+mostrar("Ya pasó un segundo")
+
+para variable i = 1 hasta 5 {
+    mostrar(i)
+}`;
+let files={'programa.ds':`variable vida = 50
+
+si vida == 100 {
+    mostrar("vida completa")
+}
+sinosi vida > 0 {
+    mostrar("sigue vivo")
+}
+sino {
+    mostrar("muerto")
+}
+
+mostrar("5+5")
+mostrar(5+5)`}, activeFile='programa.ds', history=[], historyIndex=-1;
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function paint(){
+ const src=editor.value;
+ const tokenRe=/(\/\/[^\n]*|#[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:verdadero|falso|nulo)\b|\b(?:variable|si|sinosi|sino|funcion|retornar|mientras|para|hasta|romper|continuar|hacer|y|o)\b|\b(?:esperar|mostrar|aceptar)\b|\b\d+(?:\.\d+)?\b|==|!=|>=|<=|[=+*\/<>(){}-])/g;
+ let html='', last=0, match;
+ while((match=tokenRe.exec(src))!==null){
+  html+=esc(src.slice(last,match.index));
+  const token=match[0]; let cls='';
+  if(token.startsWith('//')||token.startsWith('#')) cls='comment';
+  else if(token[0]==='"'||token[0]==="'") cls='str';
+  else if(/^(verdadero|falso|nulo)$/.test(token)) cls='bool';
+  else if(/^(variable|si|sinosi|sino|repetir|funcion|retornar|mientras|para|hasta|romper|continuar|hacer|y|o)$/.test(token)) cls='kw';
+  else if(/^(esperar|mostrar|aceptar)$/.test(token)) cls='fn';
+  else if(/^\d/.test(token)) cls='num';
+  else cls='op';
+  html+='<span class="'+cls+'">'+esc(token)+'</span>';
+  last=tokenRe.lastIndex;
+ }
+ html+=esc(src.slice(last));
+ highlight.innerHTML=html+'\n';
+ gutter.textContent=Array.from({length:Math.max(1,src.split('\n').length)},(_,i)=>i+1).join('\n');
+ syncScroll();
+}
+function syncScroll(){highlight.scrollTop=editor.scrollTop;highlight.scrollLeft=editor.scrollLeft;gutter.scrollTop=editor.scrollTop;}
+function saveHistory(){if(historyIndex>=0&&history[historyIndex]===editor.value)return;history=history.slice(0,historyIndex+1);history.push(editor.value);if(history.length>100)history.shift();historyIndex=history.length-1;}
+function renderFiles(){const list=document.getElementById('filelist');list.innerHTML='';Object.keys(files).forEach(name=>{const b=document.createElement('button');b.className='filetab'+(name===activeFile?' active':'');b.textContent=name;b.onclick=()=>switchFile(name);list.appendChild(b);});}
+function switchFile(name){files[activeFile]=editor.value;activeFile=name;editor.value=files[name]||'';document.getElementById('filename').textContent=name;renderFiles();saveHistory();paint();document.getElementById('status').textContent='Archivo: '+name;}
+function updateActive(){files[activeFile]=editor.value;document.getElementById('status').textContent='Cambios locales';}
+function stripParens(s){s=s.trim();if(s.startsWith('(')&&s.endsWith(')'))return s.slice(1,-1);return s;}
+function transpile(src){
+ let s=src.replace(/\r/g,'').replace(/^\s*>[^\n]*(?:\n|$)/gm,'');
+ // aceptar() es asíncrona: esperar el valor escrito antes de continuar.
+ s=s.replace(/\baceptar\s*\(/g,'await aceptar(');
+ // En condiciones, un '=' aislado significa comparación (==), no asignación.
+ s=s.replace(/^(\s*(?:si|sinosi|mientras)\s+)(.*?)(\s*\{\s*)$/gm,(_,start,condition,end)=>start+condition.replace(/(?<![=!<>])=(?!=)/g,'==')+end);
+ // Dentro de mostrar, permite concatenar texto y variables sin escribir '+'.
+ // Ejemplo: mostrar("Hola " nombre) -> mostrar("Hola " + nombre)
+ s=s.replace(/\bmostrar\s*\(\s*((?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'))\s+([A-Za-z_][A-Za-z0-9_]*)\s*\)/g,'mostrar($1 + $2)');
+ s=s.replace(/^([ \t]*)variable\b/gm,'$1let').replace(/^([ \t]*)funcion\b/gm,'$1function').replace(/^([ \t]*)retornar\b/gm,'$1return');
+ s=s.replace(/\bverdadero\b/g,'true').replace(/\bfalso\b/g,'false').replace(/\bnulo\b/g,'null');
+ s=s.replace(/^([ \t]*)sinosi\s+(.+?)\s*\{\s*$/gm,(_,a,c)=>`${a}else if (${stripParens(c)}) {`);
+ s=s.replace(/^([ \t]*)si\s+(.+?)\s*\{\s*$/gm,(_,a,c)=>`${a}if (${stripParens(c)}) {`);
+ s=s.replace(/^([ \t]*)mientras\s+(.+?)\s*\{\s*$/gm,(_,a,c)=>`${a}while (${stripParens(c)}) {`);
+ let repeatIndex=0;
+ s=s.replace(/^([ \t]*)repetir\s*\((.*?)\)\s*\{\s*$/gm,(_,a,count)=>`${a}for (let __repetir_${repeatIndex++} = 0; __repetir_${repeatIndex-1} < Math.max(0, Math.floor(Number(${count}))); __repetir_${repeatIndex-1}++) {`);
+ s=s.replace(/^([ \t]*)sino\s*\{\s*$/gm,'$1else {');
+ s=s.replace(/^([ \t]*)para\s+variable\s+(\w+)\s*=\s*(-?\d+(?:\.\d+)?)\s+hasta\s+(-?\d+(?:\.\d+)?)\s*\{\s*$/gm,(_,a,v,start,end)=>`${a}for (let ${v} = ${start}; ${v} <= ${end}; ${v}++) {`);
+ s=s.replace(/^([ \t]*)hacer\s*\{\s*$/gm,'$1do {');
+ s=s.replace(/^([ \t]*)esperar\s*\((.*?)\)\s*;?\s*$/gm,(_,a,secs)=>`${a}await new Promise(resolve => setTimeout(resolve, Math.max(0, Number(${secs}) * 1000)));`);
+ s=s.replace(/^([ \t]*)continuar\s*;?\s*$/gm,'$1continue;').replace(/^([ \t]*)romper\s*;?\s*$/gm,'$1break;');
+ s=s.replace(/^([ \t]*)mientras\s+(.+?)\s*;\s*$/gm,(_,a,c)=>`${a}while (${stripParens(c)});`);
+ s=s.replace(/\by\b/g,'&&').replace(/\bo\b/g,'||');
+ return s;
+}
+function syntaxCheck(src){
+ const lines=src.split('\n'), problems=[];let braces=0;
+ lines.forEach((line,i)=>{
+  if(/^\\s*>/.test(line)) return;
+  let clean=line.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,'""').replace(/#.*$/,'').replace(/\/\/.*$/,'');
+  for(const ch of clean){if(ch==='{')braces++;if(ch==='}')braces--;if(braces<0){problems.push(`Línea ${i+1}: llave de cierre sin abrir.`);braces=0;}}
+  if(/\b(var|let|const)\b/.test(clean))problems.push(`Línea ${i+1}: usa «variable» en Direct.script, no var/let/const.`);
+  const q=(line.match(/"/g)||[]).length;if(q%2)problems.push(`Línea ${i+1}: parece faltar una comilla doble.`);
+ });
+ if(braces>0)problems.push(`Faltan ${braces} llave(s) de cierre «}».`);
+ return problems;
+}
+function aceptar(mensaje){
+ return new Promise(resolve=>{
+  const modal=document.getElementById('input-modal'), form=document.getElementById('input-form'), field=document.getElementById('input-answer'), label=document.getElementById('input-prompt');
+  label.textContent=String(mensaje ?? '');
+  field.value=''; modal.classList.add('open');
+  const finish=(value)=>{modal.classList.remove('open');form.removeEventListener('submit',submit);document.getElementById('input-cancel').removeEventListener('click',cancel);resolve(value);};
+  const submit=(event)=>{event.preventDefault();const raw=field.value.trim();let value=raw;if(raw!=='' && /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw)){const n=Number(raw);if(Number.isFinite(n))value=n;}finish(value);};
+  const cancel=()=>finish('');
+  form.addEventListener('submit',submit,{once:true});
+  document.getElementById('input-cancel').addEventListener('click',cancel,{once:true});
+  setTimeout(()=>field.focus(),50);
+ });
+}
+document.getElementById('input-modal').addEventListener('click',e=>{if(e.target.id==='input-modal')document.getElementById('input-answer').focus();});
+async function run(){
+ output.textContent='';const lines=[];let started=Date.now();
+ const print=(...args)=>{if(Date.now()-started>5000)throw new Error('El programa tardó demasiado. Revisa los bucles.');lines.push(args.map(v=>v===null?'nulo':typeof v==='object'?JSON.stringify(v):String(v)).join(' '));};
+ // Esperar la respuesta del usuario no cuenta como tiempo de ejecución del programa.
+ const ask=async(mensaje)=>{const respuesta=await aceptar(mensaje);started=Date.now();return respuesta;};
+ try{
+  const js=transpile(editor.value);
+  const runner=new Function('mostrar','aceptar',`"use strict"; return (async()=>{${js}\n})();`);
+  await runner(print,ask);
+  output.innerHTML='';
+  if(!lines.length){output.innerHTML='<span class="placeholder">Programa ejecutado sin salida.</span>';return;}
+  const span=document.createElement('span');span.className='ok';span.textContent=lines.join('\n');output.appendChild(span);
+ }catch(e){output.innerHTML='';const span=document.createElement('span');span.className='err';span.textContent='Error: '+e.message;output.appendChild(span);}
+}
+function check(){const d=document.getElementById('diagnostics'),problems=syntaxCheck(editor.value);d.innerHTML='';if(!problems.length){d.innerHTML='<span class="ok">✓ No se detectaron errores básicos de sintaxis.</span>';return;}problems.forEach(p=>{const div=document.createElement('div');div.className='err';div.textContent='• '+p;d.appendChild(div);});}
+const suggest=document.getElementById('suggest');
+function hideSuggest(){suggest.style.display='none';}
+function insertCompletion(word){
+ const pos=editor.selectionStart, left=editor.value.slice(0,pos), m=left.match(/[A-Za-z_]+$/);
+ if(!m) return;
+ editor.setRangeText(word, pos-m[0].length, pos, 'end');
+ hideSuggest(); updateActive(); paint(); editor.focus();
+}
+function showSuggestions(){const left=editor.value.slice(0,editor.selectionStart),m=left.match(/[A-Za-z_]+$/);if(!m||m[0].length<2){hideSuggest();return;}const matches=words.filter(w=>w.startsWith(m[0])&&w!==m[0]).slice(0,5);if(!matches.length){hideSuggest();return;}suggest.innerHTML='';matches.forEach(w=>{const b=document.createElement('button');b.textContent=w;b.onclick=()=>insertCompletion(w);suggest.appendChild(b);});suggest.style.display='block';}
+function formatCode(){let level=0;editor.value=editor.value.split('\n').map(line=>{const t=line.trim();if(!t)return '';if(t.startsWith('}')||t.startsWith('sino'))level=Math.max(0,level-1);const out='    '.repeat(level)+t;if(t.endsWith('{'))level++;return out;}).join('\n');updateActive();paint();}
+document.getElementById('run').onclick=run;
+const examples=[
+ {title:'Hola mundo',desc:'Tu primer programa.',code:'mostrar("Hola mundo")'},
+ {title:'Mostrar texto',desc:'Escribe un mensaje en la consola.',code:'mostrar("Hola, bienvenido a Direct.script")'},
+ {title:'Números y operaciones',desc:'Puedes calcular y mostrar resultados.',code:'mostrar(5+5)\nmostrar(20-3)\nmostrar(4*2)'},
+ {title:'Variables',desc:'Guarda datos y úsalos después.',code:'variable nombre = "Alex"\nvariable edad = 15\nmostrar("Hola " nombre)\nmostrar(edad)'},
+ {title:'Entrada con aceptar()',desc:'Pregunta algo y muestra la respuesta.',code:'variable nombre = aceptar("Cual es tu nombre?")\nmostrar("Hola " nombre)'},
+ {title:'Condición si / sino',desc:'Elige un resultado según la respuesta.',code:'variable pregunta = aceptar("Cuanto es 5+5?")\nsi pregunta = 10 {\n    mostrar("Correcto")\n}\nsino {\n    mostrar("Incorrecto")\n}'},
+ {title:'Condición sinosi',desc:'Comprueba varias posibilidades.',code:'variable nota = 8\nsi nota >= 9 {\n    mostrar("Excelente")\n}\nsinosi nota >= 6 {\n    mostrar("Aprobado")\n}\nsino {\n    mostrar("Sigue practicando")\n}'},
+ {title:'Bucle mientras',desc:'Repite mientras la condición sea verdadera.',code:'variable contador = 1\nmientras contador <= 3 {\n    mostrar(contador)\n    contador = contador + 1\n}'},
+ {title:'Bucle para',desc:'Repite un bloque una cantidad de veces.',code:'para variable i = 1 hasta 5 {\n    mostrar(i)\n}'},
+ {title:'Crear una función',desc:'Agrupa instrucciones para reutilizarlas.',code:'funcion saludar(nombre) {\n    mostrar("Hola " nombre)\n}\nsaludar("Alex")'},
+ {title:'Esperar',desc:'Pausa antes de continuar.',code:'mostrar("Inicio")\nesperar(1)\nmostrar("Ha pasado un segundo")'},
+ {title:'Gráfica de barras',desc:'Ejemplo de ventas por mes. Abre este ejemplo en el Editor de gráficas.',chartType:'bar',chartTitle:'Ventas por mes',chartLabels:'Enero,Febrero,Marzo,Abril',chartValues:'12,19,8,24'},
+ {title:'Gráfica de líneas',desc:'Compara una tendencia a lo largo del tiempo.',chartType:'line',chartTitle:'Visitas por semana',chartLabels:'Lun,Mar,Mié,Jue,Vie,Sáb,Dom',chartValues:'8,12,10,18,21,16,25'},
+ {title:'Gráfica circular (pastel)',desc:'Muestra cómo se reparte un total en categorías.',chartType:'pie',chartTitle:'Distribución de gastos',chartLabels:'Comida,Transporte,Juegos,Ahorro',chartValues:'35,20,15,30'},
+ {title:'Gráfica de dona',desc:'Una alternativa circular para comparar proporciones.',chartType:'doughnut',chartTitle:'Uso del tiempo',chartLabels:'Estudio,Descanso,Videojuegos,Otros',chartValues:'30,25,30,15'},
+ {title:'Gráfica de área',desc:'Visualiza cómo cambian los valores de una serie.',chartType:'area',chartTitle:'Progreso semanal',chartLabels:'Semana 1,Semana 2,Semana 3,Semana 4',chartValues:'4,9,13,22'},
+ {title:'Gráfica de puntos',desc:'Compara valores individuales como puntos.',chartType:'scatter',chartTitle:'Puntuaciones',chartLabels:'A,B,C,D,E',chartValues:'5,12,8,17,14'}
+];
+const examplesModal=document.getElementById('examples-modal'), examplesList=document.getElementById('examples-list'), examplesSearch=document.getElementById('examples-search');
+function renderExamples(filter=''){examplesList.innerHTML='';const q=filter.toLocaleLowerCase();const filtered=examples.filter(x=>(x.title+' '+x.desc+' '+(x.code||'')).toLocaleLowerCase().includes(q));if(!filtered.length){examplesList.textContent='No se encontraron ejemplos.';return;}filtered.forEach(ex=>{const item=document.createElement('article');item.className='example-item';const h=document.createElement('h3');h.textContent=ex.title;const p=document.createElement('p');p.textContent=ex.desc;const pre=document.createElement('pre');pre.textContent=ex.chartType?('Tipo: '+({bar:'Barras',line:'Líneas',pie:'Pastel',doughnut:'Dona',area:'Área',scatter:'Puntos'}[ex.chartType])+'\nEtiquetas: '+ex.chartLabels+'\nValores: '+ex.chartValues):ex.code;const actions=document.createElement('div');actions.className='example-actions';const load=document.createElement('button');load.type='button';if(ex.chartType){load.textContent='Abrir en Editor de gráficas';load.onclick=()=>{document.getElementById('chart-type').value=ex.chartType;document.getElementById('chart-title').value=ex.chartTitle;document.getElementById('chart-labels').value=ex.chartLabels;document.getElementById('chart-values').value=ex.chartValues;examplesModal.classList.remove('open');showChartStudio(true);drawChartPreview();};actions.append(load);}else{load.textContent='Cargar en el editor';load.onclick=()=>{files[activeFile]=editor.value;editor.value=ex.code;updateActive();paint();saveHistory();examplesModal.classList.remove('open');editor.focus();document.getElementById('status').textContent='Ejemplo cargado: '+ex.title;};const copy=document.createElement('button');copy.type='button';copy.textContent='Ver código en editor';copy.onclick=()=>{files[activeFile]=editor.value;editor.value=ex.code;updateActive();paint();saveHistory();examplesModal.classList.remove('open');editor.focus();};actions.append(load,copy);}item.append(h,p,pre,actions);examplesList.appendChild(item);});}
+document.getElementById('example').onclick=()=>{renderExamples();examplesSearch.value='';examplesModal.classList.add('open');};
+document.getElementById('examples-close').onclick=()=>examplesModal.classList.remove('open');
+examplesModal.addEventListener('click',e=>{if(e.target===examplesModal)examplesModal.classList.remove('open');});
+examplesSearch.addEventListener('input',()=>renderExamples(examplesSearch.value));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){examplesModal.classList.remove('open');}});
+document.getElementById('clear').onclick=()=>{editor.value='';updateActive();paint();editor.focus();};
+document.getElementById('clearout').onclick=()=>{output.innerHTML='<span class="placeholder">Consola limpia.</span>';};
+document.getElementById('download').onclick=()=>{files[activeFile]=editor.value;const blob=new Blob([editor.value],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=activeFile.endsWith('.ds')?activeFile:activeFile+'.ds';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+document.getElementById('newfile').onclick=()=>{files[activeFile]=editor.value;let n=prompt('Nombre del nuevo archivo (ej. funciones.ds):','nuevo.ds');if(!n)return;if(!n.endsWith('.ds'))n+='.ds';if(files[n]!==undefined){alert('Ya existe un archivo con ese nombre.');return;}files[n]='';switchFile(n);};
+document.getElementById('openfile').onclick=()=>document.getElementById('fileinput').click();
+document.getElementById('fileinput').onchange=async e=>{const f=e.target.files[0];if(!f)return;files[f.name]=await f.text();switchFile(f.name);e.target.value='';};
+document.getElementById('saveproject').onclick=()=>{files[activeFile]=editor.value;const blob=new Blob([JSON.stringify({name:document.getElementById('projectname').value,files},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(document.getElementById('projectname').value||'proyecto').replace(/[^\w-]+/g,'_')+'.directproject.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+document.getElementById('loadproject').onclick=()=>document.getElementById('projectinput').click();
+document.getElementById('projectinput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const p=JSON.parse(await f.text());if(!p.files||typeof p.files!=='object')throw new Error('Formato de proyecto inválido');files=p.files;document.getElementById('projectname').value=p.name||'Mi proyecto';switchFile(Object.keys(files)[0]||'programa.ds');}catch(err){alert('No se pudo abrir el proyecto: '+err.message);}e.target.value='';};
+document.getElementById('check').onclick=check;
+document.getElementById('format').onclick=formatCode;
+document.getElementById('undo').onclick=()=>{if(historyIndex>0){historyIndex--;editor.value=history[historyIndex];updateActive();paint();}};
+document.getElementById('redo').onclick=()=>{if(historyIndex<history.length-1){historyIndex++;editor.value=history[historyIndex];updateActive();paint();}};
+editor.addEventListener('input',()=>{saveHistory();updateActive();paint();showSuggestions();});
+editor.addEventListener('scroll',syncScroll);
+editor.addEventListener('keydown',e=>{
+ if(e.key==='Tab'){if(suggest.style.display==='block'&&suggest.firstChild){e.preventDefault();suggest.firstChild.click();return;}e.preventDefault();const a=editor.selectionStart,b=editor.selectionEnd;editor.setRangeText('    ',a,b,'end');updateActive();paint();}
+ else if(e.key==='Enter'){hideSuggest();const before=editor.value.slice(0,editor.selectionStart).split('\n').pop();const indent=(before.match(/^\s*/)||[''])[0]+(before.trim().endsWith('{')?'    ':'');if(indent){e.preventDefault();const pos=editor.selectionStart;editor.setRangeText('\n'+indent,pos,editor.selectionEnd,'end');updateActive();paint();}}
+ else if(e.key==='Escape')hideSuggest();
+});
+document.addEventListener('click',e=>{if(!suggest.contains(e.target)&&e.target!==editor)hideSuggest();});
+
+const chartStudio=document.getElementById('chart-studio');
+function showChartStudio(show){
+ chartStudio.classList.toggle('active',show);
+ document.querySelector('.toolbar').style.display=show?'none':'flex';
+ document.getElementById('normal-main').style.display=show?'none':'';
+ document.getElementById('normal-footer').style.display=show?'none':'';
+ document.getElementById('open-chart-studio').setAttribute('aria-pressed',String(show));
+ if(show) drawChartPreview();
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('open-chart-studio').addEventListener('click',()=>showChartStudio(true));
+document.getElementById('back-to-studio').addEventListener('click',()=>showChartStudio(false));
+function drawChartPreview(){
+ const type=document.getElementById('chart-type').value;
+ const title=document.getElementById('chart-title').value.trim()||'Mi gráfica';
+ const labels=document.getElementById('chart-labels').value.split(',').map(x=>x.trim()).filter(Boolean);
+ const vals=document.getElementById('chart-values').value.split(',').map(x=>Number(x.trim())).filter(x=>Number.isFinite(x));
+ const color=document.getElementById('chart-color').value,bg=document.getElementById('chart-bg').value;
+ const w=Number(document.getElementById('chart-width').value),h=Number(document.getElementById('chart-height').value),th=Number(document.getElementById('chart-thickness').value);
+ document.getElementById('chart-width-label').textContent=w+' px';document.getElementById('chart-height-label').textContent=h+' px';document.getElementById('chart-thickness-label').textContent=th+' px';
+ const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('width',w);svg.setAttribute('height',h);svg.style.background=bg;svg.style.borderRadius='10px';
+ const add=(tag,attrs={},txt='')=>{const el=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));if(txt)el.textContent=txt;svg.appendChild(el);return el;};
+ const text=(x,y,t,size=12,fill='#e8eefc',anchor='middle')=>add('text',{x,y,fill,'font-size':size,'text-anchor':anchor,'font-family':'system-ui, sans-serif'},t);
+ add('text',{x:w/2,y:26,fill:'#e8eefc','font-size':16,'font-weight':700,'text-anchor':'middle','font-family':'system-ui, sans-serif'},title);
+ const data=vals.slice(0,Math.max(1,labels.length));if(!data.length){text(w/2,h/2,'Añade valores numéricos',14);}
+ else if(type==='pie'||type==='doughnut'){
+  const positive=data.map(v=>Math.max(0,v)),sum=positive.reduce((a,b)=>a+b,0);let angle=-Math.PI/2;const cx=w/2,cy=h/2+10,r=Math.min(w*.28,h*.34),colors=[color,'#a78bfa','#4ade80','#fbbf24','#fb7185','#38bdf8','#f472b6'];
+  if(sum<=0){text(cx,cy,'Los valores deben sumar más de cero',12);}else positive.forEach((v,i)=>{if(!v)return;const next=angle+v/sum*Math.PI*2,x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),x2=cx+r*Math.cos(next),y2=cy+r*Math.sin(next),large=next-angle>Math.PI?1:0;const path=document.createElementNS(ns,'path');path.setAttribute('d',`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`);path.setAttribute('fill',colors[i%colors.length]);path.setAttribute('stroke',bg);path.setAttribute('stroke-width',th);svg.appendChild(path);angle=next;});if(type==='doughnut')add('circle',{cx,cy,r:r*.48,fill:bg});
+  labels.slice(0,data.length).forEach((l,i)=>text(w/2,h-12-(i%2)*14,`${l}: ${data[i]}`,10,'#e8eefc'));
+ } else {
+  const left=48,right=18,top=48,bottom=44,plotW=w-left-right,plotH=h-top-bottom,max=Math.max(...data,1)*1.15,min=Math.min(0,...data),range=max-min||1;
+  for(let i=0;i<5;i++){const y=top+i*plotH/4;add('line',{x1:left,y1:y,x2:w-right,y2:y,stroke:'#26334d','stroke-width':1});text(left-8,y+4,String(Math.round(max-i*max/4)),10,'#8fa1c2','end');}
+  add('line',{x1:left,y1:top,x2:left,y2:top+plotH,stroke:'#60708f'});add('line',{x1:left,y1:top+plotH,x2:w-right,y2:top+plotH,stroke:'#60708f'});
+  const pts=data.map((v,i)=>({x:left+(data.length===1?plotW/2:i*plotW/(data.length-1)),y:top+plotH-(v-min)/range*plotH,v}));
+  if(type==='bar'){const step=plotW/data.length,bw=step*.58;pts.forEach((p,i)=>{const x=left+i*step+(step-bw)/2,y=top+plotH-(p.v-min)/range*plotH;add('rect',{x,y,width:bw,height:Math.max(0,top+plotH-y),rx:3,fill:color,opacity:.9});text(x+bw/2,top+plotH+18,(labels[i]||String(i+1)).slice(0,10),10);});}
+  if(type==='line'||type==='area'){const path=pts.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' ');if(type==='area')add('path',{d:path+` L ${pts[pts.length-1].x} ${top+plotH} L ${pts[0].x} ${top+plotH} Z`,fill:color,opacity:.24});add('path',{d:path,fill:'none',stroke:color,'stroke-width':th,'stroke-linejoin':'round','stroke-linecap':'round'});pts.forEach((p,i)=>{add('circle',{cx:p.x,cy:p.y,r:Math.max(3,th+1),fill:color});text(p.x,top+plotH+18,(labels[i]||String(i+1)).slice(0,10),10);});}
+  if(type==='scatter'){pts.forEach((p,i)=>{add('circle',{cx:p.x,cy:p.y,r:Math.max(4,th+2),fill:color});text(p.x,top+plotH+18,(labels[i]||String(i+1)).slice(0,10),10);});}
+ }
+ const preview=document.getElementById('chart-preview');preview.innerHTML='';preview.appendChild(svg);document.getElementById('chart-status').textContent='Vista previa actualizada';
+}
+document.getElementById('chart-apply').addEventListener('click',drawChartPreview);
+document.getElementById('chart-reset').addEventListener('click',()=>{document.getElementById('chart-type').value='bar';document.getElementById('chart-title').value='Mi gráfica';document.getElementById('chart-labels').value='Enero,Febrero,Marzo,Abril';document.getElementById('chart-values').value='12,19,8,24';document.getElementById('chart-color').value='#6d8dff';document.getElementById('chart-bg').value='#080e1b';document.getElementById('chart-width').value=640;document.getElementById('chart-height').value=340;document.getElementById('chart-thickness').value=3;drawChartPreview();});
+
+editor.value=files[activeFile];saveHistory();renderFiles();paint();drawChartPreview();
+
+</script>
+</body>
+</html>
